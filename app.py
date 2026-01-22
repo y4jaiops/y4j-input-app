@@ -61,5 +61,124 @@ def get_production_drive_service():
     """
     auth = st.secrets["google_auth"]
     
+    # --- ERROR WAS HERE: Ensure the closing parenthesis ')' exists ---
     creds = Credentials(
         token=None,
+        refresh_token=auth["refresh_token"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=auth["client_id"],
+        client_secret=auth["client_secret"]
+    )
+    
+    # Refresh if expired
+    if not creds.valid:
+        creds.refresh(Request())
+        
+    return build('drive', 'v3', credentials=creds)
+
+def upload_to_drive(file_name, file_content, mime_type):
+    """Uploads a file to the configured FOLDER_ID."""
+    try:
+        service = get_production_drive_service()
+        
+        file_metadata = {
+            'name': file_name,
+            'parents': [FOLDER_ID]
+        }
+        
+        media = MediaIoBaseUpload(
+            io.BytesIO(file_content), 
+            mimetype=mime_type, 
+            resumable=True
+        )
+        
+        file = service.files().create(
+            body=file_metadata, 
+            media_body=media, 
+            fields='id'
+        ).execute()
+        
+        return file.get('id')
+        
+    except Exception as e:
+        st.error(f"Upload failed: {e}")
+        return None
+
+# --- 4. AUTHENTICATION LOGIC (THE GATEKEEPER) ---
+
+# Check if we are already logged in
+if "credentials" not in st.session_state:
+    
+    # A. Handle the Return Trip (Google sending user back)
+    if "code" in st.query_params:
+        try:
+            # Get the code from the URL
+            code = st.query_params["code"]
+            
+            # Exchange the code for a token
+            flow = get_google_flow()
+            flow.fetch_token(code=code)
+            
+            # Save login state
+            st.session_state["credentials"] = flow.credentials
+            
+            # Clear URL query params to prevent reload loops
+            st.query_params.clear()
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"Login failed: {e}")
+            st.stop()
+
+    # B. Show Login Button (If no code and no credentials)
+    else:
+        st.title("🏗️ Y4J Volunteer Portal")
+        st.info("Please log in to access the system.")
+        
+        flow = get_google_flow()
+        
+        # Disable PKCE to prevent invalid_grant errors
+        auth_url, _ = flow.authorization_url(
+            prompt='consent',
+            access_type='offline',
+            include_granted_scopes='true',
+            pkce=False
+        )
+        
+        st.link_button("Log in with Google", auth_url)
+        st.stop()
+
+# --- 5. MAIN APP (LOGGED IN ONLY) ---
+
+# If code reaches here, user is logged in
+creds = st.session_state["credentials"]
+
+# --- FETCH USER INFO ---
+try:
+    # Build the OAuth2 service to get user details
+    user_service = build('oauth2', 'v2', credentials=creds)
+    user_info = user_service.userinfo().get().execute()
+    
+    user_email = user_info.get('email')
+    user_id = user_info.get('id')
+    user_name = user_info.get('name', 'Volunteer')
+    user_pic = user_info.get('picture')
+    
+    # Display in Sidebar
+    st.sidebar.success(f"✅ Logged In")
+    if user_pic:
+        st.sidebar.image(user_pic, width=50)
+    st.sidebar.write(f"**{user_name}**")
+    st.sidebar.caption(f"{user_email}")
+    
+except Exception as e:
+    st.sidebar.warning("Logged in, but couldn't fetch profile info.")
+    # Fallback values if API fails
+    user_email = "Unknown User"
+    user_id = "N/A"
+    user_name = "Volunteer"
+
+# Logout Button
+if st.sidebar.button("Logout"):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
