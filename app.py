@@ -14,7 +14,7 @@ st.set_page_config(page_title="Y4J Volunteer Portal", page_icon="🏗️", layou
 # Folder where uploads will go (The 2TB Drive Folder)
 FOLDER_ID = "1_XXSyakCqZdKq72LFTd2g7iqH0enpt9L"
 
-# Check for secrets
+# Check for secrets to prevent crashing if they are missing
 if "auth" not in st.secrets:
     st.error("Missing [auth] section in secrets.toml.")
     st.stop()
@@ -28,7 +28,7 @@ def get_google_flow():
     """Creates the OAuth flow for User Login."""
     auth_secrets = st.secrets["auth"]
     
-    # Construct the client config
+    # Construct the client config dictionary
     client_config = {
         "web": {
             "client_id": auth_secrets["client_id"],
@@ -52,7 +52,7 @@ def get_google_flow():
 def get_production_drive_service():
     """
     Creates a Drive Service using the 'refresh_token' from secrets.
-    This ensures uploads go to YOUR central 2TB account, not the user's account.
+    This ensures uploads go to YOUR central 2TB account, not the user's personal Drive.
     """
     auth = st.secrets["google_auth"]
     
@@ -73,35 +73,4 @@ def get_production_drive_service():
 def upload_to_drive(file_name, file_content, mime_type):
     """Uploads a file to the configured FOLDER_ID."""
     try:
-        service = get_production_drive_service()
-        
-        file_metadata = {
-            'name': file_name,
-            'parents': [FOLDER_ID]
-        }
-        
-        media = MediaIoBaseUpload(
-            io.BytesIO(file_content), 
-            mimetype=mime_type, 
-            resumable=True
-        )
-        
-        file = service.files().create(
-            body=file_metadata, 
-            media_body=media, 
-            fields='id'
-        ).execute()
-        
-        return file.get('id')
-    except Exception as e:
-        st.error(f"Upload failed: {e}")
-        return None
-
-# --- 4. AUTHENTICATION LOGIC (THE GATEKEEPER) ---
-
-# Check if we are already logged in
-if "credentials" not in st.session_state:
-    
-    # A. Handle the Return Trip (Google sending user back)
-    if "code" in st.query_params:
-        try:
+        service = get_
