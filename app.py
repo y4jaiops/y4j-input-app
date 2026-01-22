@@ -12,7 +12,7 @@ st.set_page_config(page_title="Y4J Volunteer Portal", page_icon="🏗️", layou
 
 # --- 2. CONFIGURATION & CONSTANTS ---
 # Folder where uploads will go (The 2TB Drive Folder)
-FOLDER_ID = "1_XXSyakCqZdKq72LFTd2g7iqH0enpt9L"
+FOLDER_ID = "1Vavl3N2vLsJtIY7xdsrjB_fi2LMS1tfU"
 
 # Check for secrets
 if "auth" not in st.secrets:
