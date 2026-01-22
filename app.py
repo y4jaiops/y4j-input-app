@@ -1,4 +1,64 @@
 import streamlit as st
+from google_auth_oauthlib.flow import Flow
+
+# 1. Setup the OAuth Flow
+# (Make sure 'secrets.toml' is loaded correctly)
+client_config = st.secrets["auth"] # or however you load your config
+
+# Create the Flow instance
+flow = Flow.from_client_config(
+    client_config={
+        "web": {
+            "client_id": st.secrets["auth"]["client_id"],
+            "client_secret": st.secrets["auth"]["client_secret"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    },
+    scopes=[
+        "openid", 
+        "https://www.googleapis.com/auth/userinfo.email", 
+        "https://www.googleapis.com/auth/drive.file"
+    ],
+    redirect_uri=st.secrets["auth"]["redirect_uri"]
+)
+
+# 2. CATCH THE RETURN TRIP
+# Check if the URL has a 'code' parameter (this means Google sent them back)
+if "code" in st.query_params:
+    try:
+        # Get the code from the URL
+        code = st.query_params["code"]
+        
+        # Exchange the code for a token (this validates the login)
+        flow.fetch_token(code=code)
+        
+        # Get user's credentials
+        credentials = flow.credentials
+        
+        # SAVE TO SESSION STATE (This is the memory fix!)
+        st.session_state["google_auth_code"] = code
+        st.session_state["credentials"] = credentials
+        st.session_state["user_email"] = "Logged In" # You can fetch actual email if needed
+        
+        # Clear the URL so we don't try to login again on refresh
+        st.query_params.clear()
+        
+    except Exception as e:
+        st.error(f"Login failed: {e}")
+
+# 3. SHOW THE UI BASED ON STATE
+if "credentials" in st.session_state:
+    st.success("You are successfully logged in!")
+    # --- SHOW YOUR MAIN APP CONTENT HERE ---
+    
+else:
+    # --- SHOW THE LOGIN BUTTON HERE ---
+    auth_url, _ = flow.authorization_url(prompt='consent')
+    st.link_button("Sign in with Google", auth_url)
+
+
+import streamlit as st
 import io
 from datetime import date
 from googleapiclient.discovery import build
