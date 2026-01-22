@@ -1,6 +1,6 @@
 import streamlit as st
 import io
-import os  
+import os
 from datetime import date
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -8,8 +8,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.auth.transport.requests import Request
 
-# --- ALLOW SCOPE CHANGES ---
-# This tells the library to accept the Full Drive scope if the user already granted it.
+# --- 0. CRITICAL FIXES ---
+# Allow the app to accept "Full Drive" scope if the user granted it previously
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 
 # --- 1. PAGE CONFIGURATION ---
@@ -132,70 +132,4 @@ if "credentials" not in st.session_state:
     # B. Show Login Button (If no code and no credentials)
     else:
         st.title("🏗️ Y4J Volunteer Portal")
-        st.info("Please log in to access the system.")
-        
-        flow = get_google_flow()
-        
-        # --- THE FIX: pkce=False ---
-        auth_url, _ = flow.authorization_url(
-            prompt='consent',
-            access_type='offline',
-            include_granted_scopes='true',
-            pkce=False
-        )
-        
-        st.link_button("Log in with Google", auth_url)
-        st.stop()
-
-# --- 5. MAIN APP (LOGGED IN ONLY) ---
-
-# If code reaches here, user is logged in
-st.sidebar.success("✅ Logged In")
-
-if st.sidebar.button("Logout"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.rerun()
-
-st.title("🏗️ Y4J Candidate Info Builder")
-
-with st.form("entry_form", clear_on_submit=True):
-    st.subheader("New Contribution")
-    info_title = st.text_input("Candidate/Info Title")
-    category = st.selectbox("Category", ["Finance", "Legal", "Marketing", "Research", "Other"])
-    entry_date = st.date_input("Document Date", date.today())
-    details = st.text_area("Details/Description")
-    
-    st.divider()
-    uploaded_file = st.file_uploader("Upload PDF or Image", type=["pdf", "png", "jpg", "jpeg"])
-    camera_photo = st.camera_input("OR Take a photo now")
-
-    submit = st.form_submit_button("🚀 Upload to Production Drive", use_container_width=True)
-
-# --- 6. SUBMISSION LOGIC ---
-if submit:
-    if not info_title:
-        st.error("Error: Please provide a title.")
-    else:
-        with st.spinner("Pushing to 2 TB Storage..."):
-            success = True
-            
-            # A. Upload the Text Details
-            text_filename = f"{entry_date}_{category}_{info_title}_notes.txt"
-            res_text = upload_to_drive(text_filename, details.encode('utf-8'), 'text/plain')
-            if not res_text: success = False
-
-            # B. Upload File
-            if uploaded_file:
-                res_file = upload_to_drive(uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
-                if not res_file: success = False
-
-            # C. Upload Camera Photo
-            if camera_photo:
-                photo_name = f"{entry_date}_{info_title}_photo.jpg"
-                res_cam = upload_to_drive(photo_name, camera_photo.getvalue(), 'image/jpeg')
-                if not res_cam: success = False
-
-            if success:
-                st.success(f"Successfully uploaded '{info_title}' records!")
-                st.balloons()
+        st.info("Please log in to access the
