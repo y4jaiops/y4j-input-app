@@ -132,4 +132,64 @@ if "credentials" not in st.session_state:
     # B. Show Login Button (If no code and no credentials)
     else:
         st.title("🏗️ Y4J Volunteer Portal")
-        st.info("Please log in to access the
+        st.info("Please log in to access the system.")
+        
+        flow = get_google_flow()
+        
+        # Disable PKCE to prevent invalid_grant errors
+        auth_url, _ = flow.authorization_url(
+            prompt='consent',
+            access_type='offline',
+            include_granted_scopes='true',
+            pkce=False
+        )
+        
+        st.link_button("Log in with Google", auth_url)
+        st.stop()
+
+# --- 5. MAIN APP (LOGGED IN ONLY) ---
+
+# If code reaches here, user is logged in
+creds = st.session_state["credentials"]
+
+# --- FETCH USER INFO ---
+try:
+    # Build the OAuth2 service to get user details
+    user_service = build('oauth2', 'v2', credentials=creds)
+    user_info = user_service.userinfo().get().execute()
+    
+    user_email = user_info.get('email')
+    user_id = user_info.get('id')
+    user_name = user_info.get('name', 'Volunteer')
+    user_pic = user_info.get('picture')
+    
+    # Display in Sidebar
+    st.sidebar.success(f"✅ Logged In")
+    if user_pic:
+        st.sidebar.image(user_pic, width=50)
+    st.sidebar.write(f"**{user_name}**")
+    st.sidebar.caption(f"{user_email}")
+    
+except Exception as e:
+    st.sidebar.warning("Logged in, but couldn't fetch profile info.")
+    # Fallback values if API fails
+    user_email = "Unknown User"
+    user_id = "N/A"
+    user_name = "Volunteer"
+
+# Logout Button
+if st.sidebar.button("Logout"):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
+# --- MAIN FORM UI ---
+st.title("🏗️ Y4J Candidate Info Builder")
+st.write(f"Welcome, **{user_name}**!")
+
+with st.form("entry_form", clear_on_submit=True):
+    st.subheader("New Contribution")
+    info_title = st.text_input("Candidate/Info Title")
+    category = st.selectbox("Category", ["Finance", "Legal", "Marketing", "Research", "Other"])
+    entry_date = st.date_input("Document Date", date.today())
+    details = st.text_area("Details/Description")
