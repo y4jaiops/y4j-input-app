@@ -1,11 +1,16 @@
 import streamlit as st
 import io
+import os  
 from datetime import date
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.auth.transport.requests import Request
+
+# --- ALLOW SCOPE CHANGES ---
+# This tells the library to accept the Full Drive scope if the user already granted it.
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Y4J Volunteer Portal", page_icon="🏗️", layout="centered")
